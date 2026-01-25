@@ -1,0 +1,16 @@
+{
+  "rest-client.environmentVariables": {
+    "$shared": {
+      "baseUrl": "http://localhost:3000",
+      "environment": "dev"
+    },
+    "dev": {
+      "baseUrl": "http://localhost:3000",
+      "environment": "dev"
+    },
+    "pdn": {
+      "baseUrl": "",
+      "environment": "production"
+    }
+  }
+}

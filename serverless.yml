@@ -1,0 +1,86 @@
+service: pizzaApp
+
+build:
+  esbuild:
+    bundle: true
+    minify: true
+    external:
+      - '@aws-sdk/client-sqs'
+
+provider:
+  name: aws
+  profile: labs
+  runtime: nodejs22.x
+  architecture: arm64
+  region: us-east-1
+  environment:
+    REGION: ${self:provider.region}
+  iam:
+    role:
+      statements:
+        - Effect: "Allow"
+          Action:
+            - "sqs:SendMessage"
+          Resource:
+            - Fn::GetAtt:
+                - pendingOrderQueue
+                - Arn
+            - Fn::GetAtt:
+                - prepareOrderQueue
+                - Arn
+
+functions:
+  createOrder:
+    handler: services/create-order.createOrder
+    environment:
+      PENDING_ORDER_QUEUE_URL:
+        Ref: pendingOrderQueue
+    events:
+      - httpApi:
+          path: /api/orders
+          method: POST
+  getOrder:
+    handler: services/get-order.getOrder
+    events:
+      - httpApi:
+          path: /api/orders/{id}
+          method: GET
+  sendOrder:
+    handler: services/send-order.sendOrder
+    environment:
+      PREPARE_ORDER_QUEUE_URL:
+        Ref: prepareOrderQueue
+    events:
+      - httpApi:
+          path: /api/send-order
+          method: POST
+  preOrder:
+    handler: services/pre-order.preOrder
+    events:
+      - sqs:
+          arn:
+            Fn::GetAtt:
+              - pendingOrderQueue
+              - Arn
+          batchSize: 1
+  prepareOrder:
+    handler: services/prepare-order.prepareOrder
+    events:
+      - sqs:
+          arn:
+            Fn::GetAtt:
+              - prepareOrderQueue
+              - Arn
+          batchSize: 1
+
+
+resources:
+  Resources:
+    pendingOrderQueue:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: pending-orders-queue
+    prepareOrderQueue:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: prepare-orders-queue

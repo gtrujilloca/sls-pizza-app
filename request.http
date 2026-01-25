@@ -1,0 +1,27 @@
+# @baseUrl = {{baseUrl}}
+
+POST {{baseUrl}}/api/orders
+content-type: application/json
+
+{
+  "itemId": "123",
+  "quantity": 2,
+  "customer": "test user",
+  "Order": "Dos pizzas"
+}
+
+
+### Get Order Status
+GET {{baseUrl}}/api/orders/1
+
+### Send Order to Preparation
+POST {{baseUrl}}/api/send-order
+content-type: application/json
+
+{
+  "orderId": "1",
+  "itemId": "123",
+  "quantity": 2,
+  "customer": "test user",
+  "Order": "Dos pizzas"
+}

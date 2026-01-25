@@ -1,0 +1,20 @@
+[
+  {
+    "orderId": "1",
+    "quantity": 2,
+    "customer": "Nayelhy",
+    "Order": "Pepperoni pizza"
+  },
+  {
+    "orderId": "2",
+    "quantity": 1,
+    "customer": "Carlos",
+    "Order": "Margherita pizza"
+  },
+  {
+    "orderId": "3",
+    "quantity": 3,
+    "customer": "Ana",
+    "Order": "Hawaiian pizza"
+  }
+]
