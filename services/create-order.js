@@ -1,5 +1,6 @@
 import { sendMessageToQueue } from '../utils/send-queue-message.js';
-
+import { createOrderInTable } from '../utils/orders-table.js';
+import { randomUUID } from 'crypto';
 
 export async function createOrder(event) {
 
@@ -16,7 +17,13 @@ export async function createOrder(event) {
         })
     }
   }
-  const orderDetail = { orderId: Date.now(), ...order };
+  const orderDetail = { orderId: randomUUID(), status: 'PENDING', ...order };
+
+  await createOrderInTable({
+    region: process.env.REGION,
+    tableName: process.env.ORDERS_TABLE_NAME,
+    item: orderDetail
+  });
 
   await sendMessageToQueue({
     queueUrl: process.env.PENDING_ORDER_QUEUE_URL,

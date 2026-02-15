@@ -1,4 +1,5 @@
-import orders from '../orders.json' with { type: 'json' };
+import { ITEM_NOT_FOUND } from '../utils/constantans.js';
+import { getOrderFromTable } from '../utils/orders-table.js';
 
 export async function getOrder(event) {
   const orderId = event.pathParameters?.id;
@@ -12,25 +13,43 @@ export async function getOrder(event) {
     }
   }
 
-  const order = orders.find(o => o.orderId === orderId);
+  // const order = orders.find(o => o.orderId === orderId);
 
-  if (!order) {
+  try {
+    const order = await getOrderFromTable({
+      region: process.env.REGION,
+      tableName: process.env.ORDERS_TABLE_NAME,
+      orderId
+    });
+
     return {
-      statusCode: 404,
+      statusCode: 200,
       body: JSON.stringify(
         {
-          message: 'Order not found'
+          message: order
         })
+    }
+
+  } catch (error) {
+
+    if (error.name === ITEM_NOT_FOUND) {
+      return {
+        statusCode: 404,
+        body: JSON.stringify(
+          {
+            message: 'Order not found'
+          })
+      }
+    }
+
+    return {
+      statusCode: 500,
+      body: JSON.stringify({
+        message: 'Error retrieving order',
+      })
     }
   }
 
-  return {
-    statusCode: 200,
-    body: JSON.stringify(
-      {
-        message: order
-      })
-  }
 }
 
 (async () => {

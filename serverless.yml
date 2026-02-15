@@ -6,6 +6,7 @@ build:
     minify: true
     external:
       - '@aws-sdk/client-sqs'
+      - "@aws-sdk/lib-dynamodb"
 
 provider:
   name: aws
@@ -26,7 +27,16 @@ provider:
                 - pendingOrderQueue
                 - Arn
             - Fn::GetAtt:
-                - prepareOrderQueue
+                - ordersToSendQueue
+                - Arn
+        - Effect: "Allow"
+          Action:
+            - "dynamodb:PutItem"
+            - "dynamodb:UpdateItem"
+            - "dynamodb:GetItem"
+          Resource:
+            - Fn::GetAtt:
+                - ordersTable
                 - Arn
 
 functions:
@@ -35,27 +45,26 @@ functions:
     environment:
       PENDING_ORDER_QUEUE_URL:
         Ref: pendingOrderQueue
+      ORDERS_TABLE_NAME:
+        Ref: ordersTable
     events:
       - httpApi:
           path: /api/orders
           method: POST
   getOrder:
     handler: services/get-order.getOrder
+    environment:
+      ORDERS_TABLE_NAME:
+        Ref: ordersTable
     events:
       - httpApi:
           path: /api/orders/{id}
           method: GET
-  sendOrder:
-    handler: services/send-order.sendOrder
+  prepareOrder:
+    handler: services/prepare-order.prepareOrder
     environment:
-      PREPARE_ORDER_QUEUE_URL:
-        Ref: prepareOrderQueue
-    events:
-      - httpApi:
-          path: /api/send-order
-          method: POST
-  preOrder:
-    handler: services/pre-order.preOrder
+      ORDERS_TABLE_NAME:
+        Ref: ordersTable
     events:
       - sqs:
           arn:
@@ -63,13 +72,35 @@ functions:
               - pendingOrderQueue
               - Arn
           batchSize: 1
-  prepareOrder:
-    handler: services/prepare-order.prepareOrder
+  sendOrder:
+    handler: services/send-order.sendOrder
+    environment:
+      ORDERS_TO_SEND_QUEUE_URL:
+        Ref: ordersToSendQueue
+    events:
+    #   - httpApi:
+    #       path: /api/send-order
+    #       method: POST
+      - stream:
+          type: dynamodb
+          arn:
+            Fn::GetAtt:
+              - ordersTable
+              - StreamArn
+          filterPatterns:
+            - eventName:
+                - MODIFY
+          batchSize: 1
+  deliverOrder:
+    handler: services/deliver-order.deliverOrder
+    environment:
+      ORDERS_TABLE_NAME:
+        Ref: ordersTable
     events:
       - sqs:
           arn:
             Fn::GetAtt:
-              - prepareOrderQueue
+              - ordersToSendQueue
               - Arn
           batchSize: 1
 
@@ -80,7 +111,22 @@ resources:
       Type: AWS::SQS::Queue
       Properties:
         QueueName: pending-orders-queue
-    prepareOrderQueue:
+    ordersToSendQueue:
       Type: AWS::SQS::Queue
       Properties:
-        QueueName: prepare-orders-queue
+        QueueName: orders-to-send-queue
+    ordersTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: orders
+        AttributeDefinitions:
+          - AttributeName: orderId
+            AttributeType: S
+        KeySchema:
+          - AttributeName: orderId
+            KeyType: HASH
+        ProvisionedThroughput:
+          ReadCapacityUnits: 1
+          WriteCapacityUnits: 1
+        StreamSpecification:
+          StreamViewType: NEW_AND_OLD_IMAGES
